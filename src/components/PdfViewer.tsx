@@ -211,13 +211,12 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
       {/* Canvas + overlay */}
       <div
         ref={containerRef}
-        className={`flex-1 bg-slate-200 dark:bg-slate-900 overflow-auto p-4 ${panMode ? "cursor-grab" : ""}`}
+        className={`flex-1 bg-slate-200 dark:bg-slate-900 overflow-auto ${panMode ? "cursor-grab" : ""}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
-        style={{ display: "flex", alignItems: "flex-start", justifyContent: "center" }}
       >
         {status === "loading" && (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-400">
@@ -229,7 +228,7 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
           <div className="flex items-center justify-center h-full text-red-400 text-sm">Kunde inte ladda PDF</div>
         )}
         {status === "ready" && (
-          <div className="relative inline-block select-none" style={{ minWidth: "fit-content" }}>
+          <div className="relative inline-block select-none" style={{ margin: "16px auto", display: "block", width: "fit-content" }}>
             <canvas ref={canvasRef} className="block shadow-xl rounded" />
             {/* Highlight overlay */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1000 1000" preserveAspectRatio="none">
