@@ -30,7 +30,7 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
       try {
         const pdfjsLib = await import("pdfjs-dist");
         pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-        const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(data) });
+        const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(data).slice(0) });
         const doc = await loadingTask.promise;
         if (cancelled) return;
         pdfDocRef.current = doc;
