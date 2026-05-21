@@ -37,7 +37,8 @@ Svara EXAKT i följande JSON-format (inga extra tecken utanför JSON):
       "from": "Var kabeln börjar (t.ex. gruppcentral GC1)",
       "to": "Var kabeln slutar (t.ex. uttag i rum 201)",
       "system": "System (t.ex. Belysning, Kraft, Data, Brandlarm)",
-      "bbox": { "page": 1, "x": 100, "y": 300, "w": 200, "h": 30 }
+      "bbox": { "page": 1, "x": 100, "y": 300, "w": 200, "h": 30 },
+      "path": { "page": 1, "points": [{"x": 100, "y": 315}, {"x": 300, "y": 315}, {"x": 300, "y": 500}, {"x": 450, "y": 500}] }
     }
   ],
   "summary": "En sammanfattande text om ritningens innehåll och de viktigaste installationerna"
@@ -54,7 +55,8 @@ REGLER:
 - Om ritningen innehåller en symbolförteckning/beteckningslista, använd den
 - Identifiera kanalisation: kabelstegar, kabelrännor, installationsrör
 - Identifiera förläggningssätt om det framgår
-- VIKTIGT: För varje komponent och kabel, ange "bbox" med ungefärlig position på ritningen i pixelkoordinater (baserat på en sida som är 1000x1000 pixlar). "page" anger sidnummer (1-indexerat), "x" och "y" är övre vänstra hörnet, "w" och "h" är bredd och höjd. Uppskatta så gott du kan var på ritningen elementet finns.`;
+- VIKTIGT: För varje komponent, ange "bbox" med ungefärlig position på ritningen i pixelkoordinater (baserat på en sida som är 1000x1000 pixlar). "page" anger sidnummer (1-indexerat), "x" och "y" är övre vänstra hörnet, "w" och "h" är bredd och höjd.
+- EXTREMT VIKTIGT FÖR KABLAR: Ange "path" med kabelns dragning som en serie punkter (polyline) i pixelkoordinater (0-1000). Följ den synliga kabellinjen på ritningen — inkludera alla punkter där kabeln svänger, böjer eller byter riktning. Texten som anger kabeltyp (t.ex. "5G25", "3G1.5") sitter längs linjen — följ den linjen. path.page anger sidnummer, path.points är arrayen med {x,y}-koordinater längs kabellinjen.`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -122,6 +124,9 @@ export async function POST(request: NextRequest) {
       to: c.to || "",
       system: c.system || "",
       bbox: c.bbox ? { page: c.bbox.page || 1, x: c.bbox.x || 0, y: c.bbox.y || 0, w: c.bbox.w || 0, h: c.bbox.h || 0 } : undefined,
+      path: c.path && Array.isArray(c.path.points) && c.path.points.length >= 2
+        ? { page: c.path.page || 1, points: c.path.points.map((p: any) => ({ x: p.x || 0, y: p.y || 0 })) }
+        : undefined,
     }));
 
     let totalMaterial = 0;

@@ -24,6 +24,7 @@ export interface CableItem {
   to: string;
   system: string;
   bbox?: BoundingBox;
+  path?: { page: number; points: { x: number; y: number }[] };
 }
 
 export interface CostLineItem {

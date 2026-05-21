@@ -5,7 +5,8 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Loader2, Hand, M
 import type { BoundingBox } from "@/lib/types";
 
 export interface Highlight {
-  bbox: BoundingBox;
+  bbox?: BoundingBox;
+  path?: { x: number; y: number }[];
   color: string;
 }
 
@@ -168,7 +169,11 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
 
   const goPage = (d: number) => setCurrentPage((p) => Math.max(1, Math.min(numPages, p + d)));
   const changeZoom = (d: number) => setScale((s) => Math.max(0.5, Math.min(3, +(s + d).toFixed(2))));
-  const pageHighlights = highlights.filter((h) => h.bbox.page === currentPage);
+  const pageHighlights = highlights.filter((h) => {
+    if (h.path) return true; // path has its own page info passed externally
+    if (h.bbox) return h.bbox.page === currentPage;
+    return false;
+  });
 
   return (
     <div className="flex flex-col h-full">
@@ -232,17 +237,36 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
             <canvas ref={canvasRef} className="block shadow-xl rounded" />
             {/* Highlight overlay */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1000 1000" preserveAspectRatio="none">
-              {pageHighlights.map((h, idx) => (
-                <line
-                  key={idx}
-                  x1={h.bbox.x} y1={h.bbox.y + h.bbox.h / 2}
-                  x2={h.bbox.x + h.bbox.w} y2={h.bbox.y + h.bbox.h / 2}
-                  stroke={h.color} strokeWidth={4} strokeOpacity={0.85}
-                  strokeLinecap="round"
-                >
-                  <animate attributeName="stroke-opacity" values="0.85;0.4;0.85" dur="1.5s" repeatCount="indefinite" />
-                </line>
-              ))}
+              {pageHighlights.map((h, idx) => {
+                if (h.path && h.path.length >= 2) {
+                  const pts = h.path.map((p) => `${p.x},${p.y}`).join(" ");
+                  return (
+                    <polyline
+                      key={idx}
+                      points={pts}
+                      fill="none"
+                      stroke={h.color} strokeWidth={5} strokeOpacity={0.85}
+                      strokeLinecap="round" strokeLinejoin="round"
+                    >
+                      <animate attributeName="stroke-opacity" values="0.85;0.4;0.85" dur="1.5s" repeatCount="indefinite" />
+                    </polyline>
+                  );
+                }
+                if (h.bbox) {
+                  return (
+                    <line
+                      key={idx}
+                      x1={h.bbox.x} y1={h.bbox.y + h.bbox.h / 2}
+                      x2={h.bbox.x + h.bbox.w} y2={h.bbox.y + h.bbox.h / 2}
+                      stroke={h.color} strokeWidth={4} strokeOpacity={0.85}
+                      strokeLinecap="round"
+                    >
+                      <animate attributeName="stroke-opacity" values="0.85;0.4;0.85" dur="1.5s" repeatCount="indefinite" />
+                    </line>
+                  );
+                }
+                return null;
+              })}
             </svg>
           </div>
         )}
