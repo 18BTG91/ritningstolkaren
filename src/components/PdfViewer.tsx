@@ -25,6 +25,7 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfDocRef = useRef<any>(null);
   const renderIdRef = useRef(0);
+  const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
 
   // Pan/drag state
   const isPanningRef = useRef(false);
@@ -82,6 +83,7 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
 
         canvas.width = vp.width;
         canvas.height = vp.height;
+        setCanvasSize({ w: vp.width, h: vp.height });
 
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
@@ -121,6 +123,7 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
           const vp = page.getViewport({ scale: fitRatio * scale });
           canvas.width = vp.width;
           canvas.height = vp.height;
+          setCanvasSize({ w: vp.width, h: vp.height });
           const ctx = canvas.getContext("2d");
           if (!ctx) return;
           await page.render({ canvasContext: ctx, viewport: vp }).promise;
@@ -233,10 +236,15 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
           <div className="flex items-center justify-center h-full text-red-400 text-sm">Kunde inte ladda PDF</div>
         )}
         {status === "ready" && (
-          <div className="relative inline-block select-none" style={{ margin: "16px auto", display: "block", width: "fit-content" }}>
+          <div style={{ position: "relative", margin: "16px auto", width: canvasSize.w, height: canvasSize.h }} className="select-none">
             <canvas ref={canvasRef} className="block shadow-xl rounded" />
             {/* Highlight overlay */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1000 1000" preserveAspectRatio="none">
+            <svg
+              style={{ position: "absolute", top: 0, left: 0, width: canvasSize.w, height: canvasSize.h }}
+              viewBox="0 0 1000 1000"
+              preserveAspectRatio="none"
+              className="pointer-events-none"
+            >
               {pageHighlights.map((h, idx) => {
                 if (h.path && h.path.length >= 2) {
                   const pts = h.path.map((p) => `${p.x},${p.y}`).join(" ");
