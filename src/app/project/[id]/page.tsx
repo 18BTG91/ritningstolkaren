@@ -314,7 +314,7 @@ export default function ProjectPage() {
         </div>
 
         {/* Center: PDF viewer */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {!selected ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
@@ -350,7 +350,7 @@ export default function ProjectPage() {
                 <div className="px-4 py-2 bg-red-50 border-b border-red-100 text-xs text-red-600">{error}</div>
               )}
               {/* PDF viewer */}
-              <div className="flex-1 bg-slate-100 dark:bg-slate-900">
+              <div className="flex-1 min-h-0 bg-slate-100 dark:bg-slate-900">
                 {pdfData ? (
                   <PdfViewer data={pdfData} highlights={highlights} />
                 ) : (
