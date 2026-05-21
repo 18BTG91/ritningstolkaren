@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Loader2, Hand, MousePointer } from "lucide-react";
 import type { BoundingBox } from "@/lib/types";
+
+export interface Highlight {
+  bbox: BoundingBox;
+  color: string;
+  label?: string;
+}
 
 interface Props {
   data: ArrayBuffer;
-  highlights?: BoundingBox[];
+  highlights?: Highlight[];
 }
 
 export default function PdfViewer({ data, highlights = [] }: Props) {
@@ -19,6 +25,12 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfDocRef = useRef<any>(null);
   const renderIdRef = useRef(0);
+
+  // Pan/drag state
+  const [isPanning, setIsPanning] = useState(false);
+  const [panMode, setPanMode] = useState(true);
+  const panStart = useRef({ x: 0, y: 0 });
+  const scrollStart = useRef({ x: 0, y: 0 });
 
   // Load PDF document
   useEffect(() => {
@@ -45,7 +57,7 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
     return () => { cancelled = true; };
   }, [data]);
 
-  // Render page whenever doc is ready, page changes, or scale changes
+  // Render page
   useEffect(() => {
     if (status !== "ready") return;
     const id = ++renderIdRef.current;
@@ -58,7 +70,7 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
 
       try {
         const page = await doc.getPage(currentPage);
-        if (id !== renderIdRef.current) return; // stale render
+        if (id !== renderIdRef.current) return;
 
         const baseVp = page.getViewport({ scale: 1 });
         const cw = container.clientWidth - 32;
@@ -80,7 +92,6 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
       }
     };
 
-    // Small delay to ensure container has dimensions
     requestAnimationFrame(() => {
       requestAnimationFrame(() => doRender());
     });
@@ -120,9 +131,39 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
     return () => { observer.disconnect(); clearTimeout(timeout); };
   }, [status, currentPage, scale]);
 
+  // Pan handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!panMode) return;
+    setIsPanning(true);
+    panStart.current = { x: e.clientX, y: e.clientY };
+    const c = containerRef.current;
+    if (c) scrollStart.current = { x: c.scrollLeft, y: c.scrollTop };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isPanning || !panMode) return;
+    const c = containerRef.current;
+    if (!c) return;
+    const dx = e.clientX - panStart.current.x;
+    const dy = e.clientY - panStart.current.y;
+    c.scrollLeft = scrollStart.current.x - dx;
+    c.scrollTop = scrollStart.current.y - dy;
+  };
+
+  const handleMouseUp = () => setIsPanning(false);
+
+  // Mouse wheel zoom
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const d = e.deltaY > 0 ? -0.1 : 0.1;
+      setScale((s) => Math.max(0.5, Math.min(3, +(s + d).toFixed(2))));
+    }
+  };
+
   const goPage = (d: number) => setCurrentPage((p) => Math.max(1, Math.min(numPages, p + d)));
   const changeZoom = (d: number) => setScale((s) => Math.max(0.5, Math.min(3, +(s + d).toFixed(2))));
-  const pageHighlights = highlights.filter((h) => h.page === currentPage);
+  const pageHighlights = highlights.filter((h) => h.bbox.page === currentPage);
 
   return (
     <div className="flex flex-col h-full">
@@ -140,6 +181,15 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
           </button>
         </div>
         <div className="flex items-center gap-1">
+          {/* Pan/select toggle */}
+          <button
+            onClick={() => setPanMode(!panMode)}
+            className={`p-1 rounded transition-colors ${panMode ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600" : "hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"}`}
+            title={panMode ? "Dragläge (klicka för att stänga av)" : "Aktivera dragläge"}
+          >
+            {panMode ? <Hand className="w-4 h-4" /> : <MousePointer className="w-4 h-4" />}
+          </button>
+          <div className="w-px h-4 bg-slate-300 dark:bg-slate-600 mx-1" />
           <button onClick={() => changeZoom(-0.25)} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
             <ZoomOut className="w-4 h-4 text-slate-600 dark:text-slate-300" />
           </button>
@@ -154,7 +204,16 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
       </div>
 
       {/* Canvas + overlay */}
-      <div ref={containerRef} className="flex-1 bg-slate-200 dark:bg-slate-900 overflow-auto flex items-start justify-center p-4">
+      <div
+        ref={containerRef}
+        className={`flex-1 bg-slate-200 dark:bg-slate-900 overflow-auto p-4 ${panMode ? (isPanning ? "cursor-grabbing" : "cursor-grab") : ""}`}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+        style={{ display: "flex", alignItems: "flex-start", justifyContent: "center" }}
+      >
         {status === "loading" && (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-400">
             <Loader2 className="w-6 h-6 animate-spin" />
@@ -165,22 +224,41 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
           <div className="flex items-center justify-center h-full text-red-400 text-sm">Kunde inte ladda PDF</div>
         )}
         {status === "ready" && (
-          <div className="relative inline-block">
+          <div className="relative inline-block select-none" style={{ minWidth: "fit-content" }}>
             <canvas ref={canvasRef} className="block shadow-xl rounded" />
-            <div className="absolute inset-0 pointer-events-none">
+            {/* Highlight overlay */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1000 1000" preserveAspectRatio="none">
               {pageHighlights.map((h, idx) => (
-                <div
-                  key={idx}
-                  className="absolute border-2 border-red-500 bg-red-500/20 rounded-sm animate-pulse"
-                  style={{
-                    left: `${(h.x / 1000) * 100}%`,
-                    top: `${(h.y / 1000) * 100}%`,
-                    width: `${(h.w / 1000) * 100}%`,
-                    height: `${(h.h / 1000) * 100}%`,
-                  }}
-                />
+                <g key={idx}>
+                  {/* Filled area */}
+                  <rect
+                    x={h.bbox.x} y={h.bbox.y} width={h.bbox.w} height={h.bbox.h}
+                    fill={h.color} fillOpacity={0.15}
+                    stroke={h.color} strokeWidth={3} strokeOpacity={0.8}
+                    rx={4}
+                  >
+                    <animate attributeName="stroke-opacity" values="0.8;0.3;0.8" dur="1.5s" repeatCount="indefinite" />
+                  </rect>
+                  {/* Label */}
+                  {h.label && (
+                    <>
+                      <rect
+                        x={h.bbox.x} y={h.bbox.y - 18}
+                        width={Math.max(h.label.length * 7, 40)} height={16}
+                        fill={h.color} rx={3} fillOpacity={0.9}
+                      />
+                      <text
+                        x={h.bbox.x + 4} y={h.bbox.y - 6}
+                        fontSize={10} fill="white" fontWeight="bold"
+                        fontFamily="system-ui, sans-serif"
+                      >
+                        {h.label}
+                      </text>
+                    </>
+                  )}
+                </g>
               ))}
-            </div>
+            </svg>
           </div>
         )}
       </div>
