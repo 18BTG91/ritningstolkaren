@@ -53,13 +53,15 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
 
     try {
       const page = await doc.getPage(currentPage);
-      const viewport = page.getViewport({ scale });
-      const containerW = container.clientWidth;
-      const containerH = container.clientHeight;
+      // Get base viewport at scale 1 to measure natural size
+      const baseViewport = page.getViewport({ scale: 1 });
+      const containerW = container.clientWidth - 32; // padding
+      const containerH = container.clientHeight - 32;
 
-      // Fit to container
-      const fitScale = Math.min(containerW / viewport.width, containerH / viewport.height, 2) * scale;
-      const fitViewport = page.getViewport({ scale: fitScale });
+      // Fit to container, then apply user zoom
+      const fitRatio = Math.min(containerW / baseViewport.width, containerH / baseViewport.height);
+      const finalScale = fitRatio * scale;
+      const fitViewport = page.getViewport({ scale: finalScale });
 
       canvas.width = fitViewport.width;
       canvas.height = fitViewport.height;
