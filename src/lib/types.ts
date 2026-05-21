@@ -19,6 +19,7 @@ export interface CableItem {
 export interface CostLineItem {
   name: string;
   symbol: string;
+  eNumber: string;
   quantity: number;
   unit: string;
   location: string;

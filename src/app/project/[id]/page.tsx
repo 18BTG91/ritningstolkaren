@@ -179,8 +179,8 @@ export default function ProjectPage() {
   // Export CSV
   const exportCSV = () => {
     if (!analysis) return;
-    const h = ["Kategori", "Komponent", "Symbol", "Antal", "Enhet", "Placering", "Material", "Arbete", "Totalt"];
-    const rows = analysis.costItems.map((i) => [i.category, i.name, i.symbol, i.quantity, i.unit, i.location, i.materialCost, i.laborCost, i.totalCost].join(";"));
+    const h = ["Kategori", "Komponent", "Symbol", "E-nummer", "Antal", "Enhet", "Placering", "Material", "Arbete", "Totalt"];
+    const rows = analysis.costItems.map((i) => [i.category, i.name, i.symbol, i.eNumber || "", i.quantity, i.unit, i.location, i.materialCost, i.laborCost, i.totalCost].join(";"));
     rows.push(""); rows.push(`;;;;;;${analysis.totalMaterial};${analysis.totalLabor};${analysis.grandTotal}`);
     const csv = [h.join(";"), ...rows].join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
@@ -370,7 +370,9 @@ export default function ProjectPage() {
                             <div key={idx} className="px-3 py-1.5 flex items-center gap-2 text-xs hover:bg-slate-50">
                               <div className="flex-1 min-w-0">
                                 <p className="text-slate-800 truncate">{item.name}</p>
-                                <p className="text-[10px] text-slate-400">{item.symbol} · {item.location}</p>
+                                <p className="text-[10px] text-slate-400">
+                                  {item.symbol}{item.eNumber ? ` · E-nr: ${item.eNumber}` : ""} · {item.location}
+                                </p>
                               </div>
                               <span className="font-semibold text-slate-700 tabular-nums">{item.quantity} {item.unit}</span>
                               {item.matched && <span className="text-[10px] text-emerald-600 font-medium">{fmt(item.totalCost)}</span>}

@@ -30,7 +30,7 @@ Svara EXAKT i följande JSON-format (inga extra tecken utanför JSON):
   ],
   "cables": [
     {
-      "type": "Kabeltyp (t.ex. EKOM 3G1.5, EKKJ 5G2.5, FQ 2x1.5, etc.)",
+      "type": "Kabeltyp (t.ex. EQLQ 3G1.5, EQLQ 5G2.5, EKKJ 5G2.5, FQ 2x1.5, etc.)",
       "designation": "Kabelbeteckning från ritningen (t.ex. W1, W2, etc.)",
       "lengthMeters": 12.5,
       "from": "Var kabeln börjar (t.ex. gruppcentral GC1)",
@@ -142,6 +142,7 @@ export async function POST(request: NextRequest) {
       return {
         name: comp.name,
         symbol: comp.symbol || "",
+        eNumber: priceMatch ? priceMatch.eNumber : "",
         quantity: qty,
         unit: comp.unit || "st",
         location: comp.location || "",
