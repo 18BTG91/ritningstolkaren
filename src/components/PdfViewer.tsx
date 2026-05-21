@@ -211,7 +211,7 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
       {/* Canvas + overlay */}
       <div
         ref={containerRef}
-        className={`flex-1 bg-slate-200 dark:bg-slate-900 overflow-auto ${panMode ? "cursor-grab" : ""}`}
+        className={`flex-1 min-h-0 bg-slate-200 dark:bg-slate-900 overflow-auto ${panMode ? "cursor-grab" : ""}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
