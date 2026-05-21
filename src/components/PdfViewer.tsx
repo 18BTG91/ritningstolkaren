@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Loader2, Hand, MousePointer } from "lucide-react";
 import type { BoundingBox } from "@/lib/types";
+import { traceCableLine } from "@/lib/lineTracer";
 
 export interface Highlight {
   bbox?: BoundingBox;
@@ -26,6 +27,7 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
   const pdfDocRef = useRef<any>(null);
   const renderIdRef = useRef(0);
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
+  const [tracedPaths, setTracedPaths] = useState<{ points: { x: number; y: number }[]; color: string }[]>([]);
 
   // Pan/drag state
   const isPanningRef = useRef(false);
@@ -170,13 +172,66 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
     }
   };
 
+  // Trace cable lines on canvas when highlights change
+  const runLineTrace = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || status !== "ready") return;
+
+    const results: { points: { x: number; y: number }[]; color: string }[] = [];
+
+    for (const h of highlights) {
+      if (h.path && h.path.length >= 1) {
+        // Use first point of Gemini's path as seed for tracing
+        const seed = h.path[0];
+        const traced = traceCableLine(canvas, seed.x, seed.y);
+        if (traced && traced.length >= 2) {
+          results.push({ points: traced, color: h.color });
+        } else {
+          // Fallback: try middle point
+          const mid = h.path[Math.floor(h.path.length / 2)];
+          const tracedMid = traceCableLine(canvas, mid.x, mid.y);
+          if (tracedMid && tracedMid.length >= 2) {
+            results.push({ points: tracedMid, color: h.color });
+          } else {
+            // Last resort: use Gemini's approximate path
+            results.push({ points: h.path, color: h.color });
+          }
+        }
+      } else if (h.bbox) {
+        // Use center of bbox as seed
+        const cx = h.bbox.x + h.bbox.w / 2;
+        const cy = h.bbox.y + h.bbox.h / 2;
+        const traced = traceCableLine(canvas, cx, cy);
+        if (traced && traced.length >= 2) {
+          results.push({ points: traced, color: h.color });
+        } else {
+          // Fallback: horizontal line through bbox
+          results.push({
+            points: [
+              { x: h.bbox.x, y: cy },
+              { x: h.bbox.x + h.bbox.w, y: cy },
+            ],
+            color: h.color,
+          });
+        }
+      }
+    }
+
+    setTracedPaths(results);
+  }, [highlights, status]);
+
+  useEffect(() => {
+    if (status === "ready" && highlights.length > 0) {
+      // Small delay to ensure canvas is rendered
+      const t = setTimeout(runLineTrace, 100);
+      return () => clearTimeout(t);
+    } else {
+      setTracedPaths([]);
+    }
+  }, [highlights, status, scale, currentPage, runLineTrace]);
+
   const goPage = (d: number) => setCurrentPage((p) => Math.max(1, Math.min(numPages, p + d)));
   const changeZoom = (d: number) => setScale((s) => Math.max(0.5, Math.min(3, +(s + d).toFixed(2))));
-  const pageHighlights = highlights.filter((h) => {
-    if (h.path) return true; // path has its own page info passed externally
-    if (h.bbox) return h.bbox.page === currentPage;
-    return false;
-  });
 
   return (
     <div className="flex flex-col h-full">
@@ -238,44 +293,30 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
         {status === "ready" && (
           <div style={{ position: "relative", margin: "16px auto", width: canvasSize.w, height: canvasSize.h }} className="select-none">
             <canvas ref={canvasRef} className="block shadow-xl rounded" />
-            {/* Highlight overlay */}
-            <svg
-              style={{ position: "absolute", top: 0, left: 0, width: canvasSize.w, height: canvasSize.h }}
-              viewBox="0 0 1000 1000"
-              preserveAspectRatio="none"
-              className="pointer-events-none"
-            >
-              {pageHighlights.map((h, idx) => {
-                if (h.path && h.path.length >= 2) {
-                  const pts = h.path.map((p) => `${p.x},${p.y}`).join(" ");
+            {/* Highlight overlay — traced paths from OpenCV-like line detection */}
+            {tracedPaths.length > 0 && (
+              <svg
+                style={{ position: "absolute", top: 0, left: 0, width: canvasSize.w, height: canvasSize.h }}
+                viewBox="0 0 1000 1000"
+                preserveAspectRatio="none"
+                className="pointer-events-none"
+              >
+                {tracedPaths.map((tp, idx) => {
+                  const pts = tp.points.map((p) => `${p.x},${p.y}`).join(" ");
                   return (
                     <polyline
                       key={idx}
                       points={pts}
                       fill="none"
-                      stroke={h.color} strokeWidth={5} strokeOpacity={0.85}
+                      stroke={tp.color} strokeWidth={4} strokeOpacity={0.9}
                       strokeLinecap="round" strokeLinejoin="round"
                     >
-                      <animate attributeName="stroke-opacity" values="0.85;0.4;0.85" dur="1.5s" repeatCount="indefinite" />
+                      <animate attributeName="stroke-opacity" values="0.9;0.5;0.9" dur="1.5s" repeatCount="indefinite" />
                     </polyline>
                   );
-                }
-                if (h.bbox) {
-                  return (
-                    <line
-                      key={idx}
-                      x1={h.bbox.x} y1={h.bbox.y + h.bbox.h / 2}
-                      x2={h.bbox.x + h.bbox.w} y2={h.bbox.y + h.bbox.h / 2}
-                      stroke={h.color} strokeWidth={4} strokeOpacity={0.85}
-                      strokeLinecap="round"
-                    >
-                      <animate attributeName="stroke-opacity" values="0.85;0.4;0.85" dur="1.5s" repeatCount="indefinite" />
-                    </line>
-                  );
-                }
-                return null;
-              })}
-            </svg>
+                })}
+              </svg>
+            )}
           </div>
         )}
       </div>
