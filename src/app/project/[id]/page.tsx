@@ -40,6 +40,7 @@ export default function ProjectPage() {
   const [drawings, setDrawings] = useState<DrawingRecord[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -71,7 +72,7 @@ export default function ProjectPage() {
 
   // Load selected drawing
   useEffect(() => {
-    if (!selected) { setPdfUrl(null); setAnalysis(null); return; }
+    if (!selected) { setPdfUrl(null); setPdfData(null); setAnalysis(null); setHighlights([]); return; }
     (async () => {
       const d = drawings.find((x) => x.id === selected);
       if (!d) return;
@@ -83,6 +84,7 @@ export default function ProjectPage() {
       }
       const fileData = await getFile(selected);
       if (fileData) {
+        setPdfData(fileData);
         const blob = new Blob([fileData], { type: "application/pdf" });
         setPdfUrl(URL.createObjectURL(blob));
         pdfFileRef.current = new File([blob], d.fileName, { type: "application/pdf" });
@@ -344,8 +346,8 @@ export default function ProjectPage() {
               )}
               {/* PDF viewer */}
               <div className="flex-1 bg-slate-100 dark:bg-slate-900">
-                {pdfUrl ? (
-                  <PdfViewer url={pdfUrl} highlights={highlights} />
+                {pdfData ? (
+                  <PdfViewer data={pdfData} highlights={highlights} />
                 ) : (
                   <div className="flex items-center justify-center h-full text-slate-400 text-sm">Laddar PDF...</div>
                 )}

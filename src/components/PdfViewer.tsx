@@ -5,14 +5,15 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2 } from "lucide-re
 import type { BoundingBox } from "@/lib/types";
 
 interface Props {
-  url: string;
+  data: ArrayBuffer;
   highlights?: BoundingBox[];
 }
 
-export default function PdfViewer({ url, highlights = [] }: Props) {
+export default function PdfViewer({ data, highlights = [] }: Props) {
   const [numPages, setNumPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1);
+  const [loading, setLoading] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -20,25 +21,28 @@ export default function PdfViewer({ url, highlights = [] }: Props) {
   const pdfDocRef = useRef<any>(null);
   const [pageSize, setPageSize] = useState({ w: 0, h: 0 });
 
-  // Load PDF document
+  // Load PDF document from ArrayBuffer
   useEffect(() => {
     let cancelled = false;
     setCurrentPage(1);
+    setLoading(true);
     (async () => {
       try {
         const pdfjsLib = await import("pdfjs-dist");
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-        const loadingTask = pdfjsLib.getDocument(url);
+        const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(data) });
         const doc = await loadingTask.promise;
         if (cancelled) return;
         pdfDocRef.current = doc;
         setNumPages(doc.numPages);
+        setLoading(false);
       } catch (err) {
         console.error("Failed to load PDF:", err);
+        setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [url]);
+  }, [data]);
 
   // Render current page
   const renderPage = useCallback(async () => {
@@ -117,7 +121,10 @@ export default function PdfViewer({ url, highlights = [] }: Props) {
 
       {/* Canvas + overlay */}
       <div ref={containerRef} className="flex-1 bg-slate-200 dark:bg-slate-900 overflow-auto flex items-start justify-center p-4">
-        <div className="relative inline-block">
+        {loading && (
+          <div className="flex items-center justify-center h-full text-slate-400 text-sm">Laddar PDF...</div>
+        )}
+        <div className={`relative inline-block ${loading ? "hidden" : ""}`}>
           <canvas ref={canvasRef} className="block shadow-xl rounded" />
           {/* Highlight overlay */}
           <div ref={overlayRef} className="absolute inset-0 pointer-events-none">
