@@ -25,7 +25,8 @@ Svara EXAKT i följande JSON-format (inga extra tecken utanför JSON):
       "quantity": 5,
       "unit": "st eller m",
       "location": "Var på ritningen (t.ex. rum, plan, sektion)",
-      "category": "En av: Belysning, Uttag, Strömställare, Kabel, Central, Förläggning, Larm, Kommunikation, Övrigt"
+      "category": "En av: Belysning, Uttag, Strömställare, Kabel, Central, Förläggning, Larm, Kommunikation, Övrigt",
+      "bbox": { "page": 1, "x": 150, "y": 200, "w": 80, "h": 40 }
     }
   ],
   "cables": [
@@ -35,7 +36,8 @@ Svara EXAKT i följande JSON-format (inga extra tecken utanför JSON):
       "lengthMeters": 12.5,
       "from": "Var kabeln börjar (t.ex. gruppcentral GC1)",
       "to": "Var kabeln slutar (t.ex. uttag i rum 201)",
-      "system": "System (t.ex. Belysning, Kraft, Data, Brandlarm)"
+      "system": "System (t.ex. Belysning, Kraft, Data, Brandlarm)",
+      "bbox": { "page": 1, "x": 100, "y": 300, "w": 200, "h": 30 }
     }
   ],
   "summary": "En sammanfattande text om ritningens innehåll och de viktigaste installationerna"
@@ -51,7 +53,8 @@ REGLER:
 - Var noggrann med antal — räkna varje instans
 - Om ritningen innehåller en symbolförteckning/beteckningslista, använd den
 - Identifiera kanalisation: kabelstegar, kabelrännor, installationsrör
-- Identifiera förläggningssätt om det framgår`;
+- Identifiera förläggningssätt om det framgår
+- VIKTIGT: För varje komponent och kabel, ange "bbox" med ungefärlig position på ritningen i pixelkoordinater (baserat på en sida som är 1000x1000 pixlar). "page" anger sidnummer (1-indexerat), "x" och "y" är övre vänstra hörnet, "w" och "h" är bredd och höjd. Uppskatta så gott du kan var på ritningen elementet finns.`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -110,13 +113,15 @@ export async function POST(request: NextRequest) {
     }
 
     const components: ExtractedComponent[] = parsed.components || [];
-    const cables: CableItem[] = (parsed.cables || []).map((c: CableItem) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cables: CableItem[] = (parsed.cables || []).map((c: any) => ({
       type: c.type || "",
       designation: c.designation || "",
       lengthMeters: c.lengthMeters || 0,
       from: c.from || "",
       to: c.to || "",
       system: c.system || "",
+      bbox: c.bbox ? { page: c.bbox.page || 1, x: c.bbox.x || 0, y: c.bbox.y || 0, w: c.bbox.w || 0, h: c.bbox.h || 0 } : undefined,
     }));
 
     let totalMaterial = 0;
@@ -151,6 +156,7 @@ export async function POST(request: NextRequest) {
         laborCost,
         totalCost: materialCost + laborCost,
         matched,
+        bbox: comp.bbox ? { page: comp.bbox.page || 1, x: comp.bbox.x || 0, y: comp.bbox.y || 0, w: comp.bbox.w || 0, h: comp.bbox.h || 0 } : undefined,
       };
     });
 

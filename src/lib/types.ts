@@ -1,3 +1,11 @@
+export interface BoundingBox {
+  page: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface ExtractedComponent {
   name: string;
   symbol: string;
@@ -5,6 +13,7 @@ export interface ExtractedComponent {
   unit: string;
   location: string;
   category: string;
+  bbox?: BoundingBox;
 }
 
 export interface CableItem {
@@ -14,6 +23,7 @@ export interface CableItem {
   from: string;
   to: string;
   system: string;
+  bbox?: BoundingBox;
 }
 
 export interface CostLineItem {
@@ -28,6 +38,7 @@ export interface CostLineItem {
   laborCost: number;
   totalCost: number;
   matched: boolean;
+  bbox?: BoundingBox;
 }
 
 export interface AnalysisResult {

@@ -13,7 +13,7 @@ import {
   deleteDrawing, saveFile, getFile,
   type ProjectRecord, type DrawingRecord,
 } from "@/lib/db";
-import type { AnalysisResult, CostLineItem, ChatMessage } from "@/lib/types";
+import type { AnalysisResult, CostLineItem, ChatMessage, BoundingBox } from "@/lib/types";
 import PdfViewer from "@/components/PdfViewer";
 import ProjectStats from "@/components/ProjectStats";
 import ProjectSummary from "@/components/ProjectSummary";
@@ -50,6 +50,7 @@ export default function ProjectPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [view, setView] = useState<View>("workspace");
+  const [highlights, setHighlights] = useState<BoundingBox[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -344,7 +345,7 @@ export default function ProjectPage() {
               {/* PDF viewer */}
               <div className="flex-1 bg-slate-100 dark:bg-slate-900">
                 {pdfUrl ? (
-                  <PdfViewer url={pdfUrl} />
+                  <PdfViewer url={pdfUrl} highlights={highlights} />
                 ) : (
                   <div className="flex items-center justify-center h-full text-slate-400 text-sm">Laddar PDF...</div>
                 )}
@@ -399,11 +400,16 @@ export default function ProjectPage() {
                       {expandedCats.has(cat) && (
                         <div className="pb-1">
                           {items.map((item, idx) => (
-                            <div key={idx} className="px-3 py-1.5 flex items-center gap-2 text-xs hover:bg-slate-50">
+                            <div
+                              key={idx}
+                              onClick={() => item.bbox ? setHighlights([item.bbox]) : setHighlights([])}
+                              className={`px-3 py-1.5 flex items-center gap-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors ${item.bbox && highlights.length === 1 && highlights[0].x === item.bbox.x && highlights[0].y === item.bbox.y ? "bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-300" : ""}`}
+                            >
                               <div className="flex-1 min-w-0">
                                 <p className="text-slate-800 truncate">{item.name}</p>
                                 <p className="text-[10px] text-slate-400">
                                   {item.symbol}{item.eNumber ? ` · E-nr: ${item.eNumber}` : ""} · {item.location}
+                                  {item.bbox && <span className="ml-1 text-blue-500">📍</span>}
                                 </p>
                               </div>
                               <span className="font-semibold text-slate-700 tabular-nums">{item.quantity} {item.unit}</span>
@@ -426,14 +432,18 @@ export default function ProjectPage() {
                     <p className="text-xs text-slate-400 text-center py-8">Inga kablar identifierade i denna ritning.</p>
                   )}
                   {analysis.cables.map((c, i) => (
-                    <div key={i} className="bg-slate-50 rounded-lg p-3 text-xs space-y-1">
+                    <div
+                      key={i}
+                      onClick={() => c.bbox ? setHighlights([c.bbox]) : setHighlights([])}
+                      className={`bg-slate-50 dark:bg-slate-700 rounded-lg p-3 text-xs space-y-1 cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all ${c.bbox && highlights.length === 1 && highlights[0].x === c.bbox.x && highlights[0].y === c.bbox.y ? "ring-2 ring-red-400 bg-red-50 dark:bg-red-900/20" : ""}`}
+                    >
                       <div className="flex justify-between items-start">
-                        <span className="font-semibold text-slate-800">{c.type}</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{c.type} {c.bbox && <span className="text-blue-500">📍</span>}</span>
                         <span className="font-bold text-blue-700">{c.lengthMeters} m</span>
                       </div>
-                      {c.designation && <p className="text-slate-500">Beteckning: {c.designation}</p>}
-                      <p className="text-slate-500">{c.from} → {c.to}</p>
-                      <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-medium">{c.system}</span>
+                      {c.designation && <p className="text-slate-500 dark:text-slate-400">Beteckning: {c.designation}</p>}
+                      <p className="text-slate-500 dark:text-slate-400">{c.from} → {c.to}</p>
+                      <span className="inline-block px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full text-[10px] font-medium">{c.system}</span>
                     </div>
                   ))}
                   {analysis.cables.length > 0 && (
