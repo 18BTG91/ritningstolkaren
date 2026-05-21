@@ -526,7 +526,7 @@ export default function ProjectPage() {
                     )}
                     {chatMessages.map((m, i) => (
                       <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed ${m.role === "user" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-800"}`}>
+                        <div className={`max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed ${m.role === "user" ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200"}`}>
                           {m.content}
                         </div>
                       </div>
@@ -540,13 +540,13 @@ export default function ProjectPage() {
                     )}
                     <div ref={chatEndRef} />
                   </div>
-                  <div className="p-3 border-t bg-white">
+                  <div className="p-3 border-t bg-white dark:bg-slate-800 dark:border-slate-700">
                     <div className="flex gap-2">
                       <input
                         type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendChat()}
                         placeholder="Ställ en fråga om ritningen..."
-                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         disabled={chatLoading}
                       />
                       <button onClick={sendChat} disabled={chatLoading || !chatInput.trim()}
