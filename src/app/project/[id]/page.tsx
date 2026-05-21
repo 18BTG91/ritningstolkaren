@@ -409,7 +409,7 @@ export default function ProjectPage() {
                           {items.map((item, idx) => (
                             <div
                               key={idx}
-                              onClick={() => item.bbox ? setHighlights([{ bbox: item.bbox, color: "#3b82f6", label: item.name }]) : setHighlights([])}
+                              onClick={() => item.bbox ? setHighlights([{ bbox: item.bbox, color: "#3b82f6" }]) : setHighlights([])}
                               className={`px-3 py-1.5 flex items-center gap-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors ${item.bbox && highlights.length === 1 && highlights[0].bbox.x === item.bbox.x && highlights[0].bbox.y === item.bbox.y ? "bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-300" : ""}`}
                             >
                               <div className="flex-1 min-w-0">
@@ -441,7 +441,7 @@ export default function ProjectPage() {
                         onClick={() => {
                           const all = analysis.cables
                             .filter((c) => c.bbox)
-                            .map((c, i) => ({ bbox: c.bbox!, color: CABLE_COLORS[i % CABLE_COLORS.length], label: c.type }));
+                            .map((c, i) => ({ bbox: c.bbox!, color: CABLE_COLORS[i % CABLE_COLORS.length] }));
                           setHighlights(highlights.length > 1 ? [] : all);
                         }}
                         className={`text-[10px] px-2 py-1 rounded-md font-medium transition-colors ${highlights.length > 1 ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"}`}
@@ -456,7 +456,7 @@ export default function ProjectPage() {
                   {analysis.cables.map((c, i) => (
                     <div
                       key={i}
-                      onClick={() => c.bbox ? setHighlights([{ bbox: c.bbox, color: CABLE_COLORS[i % CABLE_COLORS.length], label: c.type }]) : setHighlights([])}
+                      onClick={() => c.bbox ? setHighlights([{ bbox: c.bbox, color: CABLE_COLORS[i % CABLE_COLORS.length] }]) : setHighlights([])}
                       className={`rounded-lg p-3 text-xs space-y-1 cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all ${c.bbox && highlights.length === 1 && highlights[0].bbox.x === c.bbox.x && highlights[0].bbox.y === c.bbox.y ? "ring-2 bg-white dark:bg-slate-600" : "bg-slate-50 dark:bg-slate-700"}`}
                     >
                       <div className="flex justify-between items-start">

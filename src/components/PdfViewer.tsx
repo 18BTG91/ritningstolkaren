@@ -7,7 +7,6 @@ import type { BoundingBox } from "@/lib/types";
 export interface Highlight {
   bbox: BoundingBox;
   color: string;
-  label?: string;
 }
 
 interface Props {
@@ -27,7 +26,7 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
   const renderIdRef = useRef(0);
 
   // Pan/drag state
-  const [isPanning, setIsPanning] = useState(false);
+  const isPanningRef = useRef(false);
   const [panMode, setPanMode] = useState(true);
   const panStart = useRef({ x: 0, y: 0 });
   const scrollStart = useRef({ x: 0, y: 0 });
@@ -131,26 +130,32 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
     return () => { observer.disconnect(); clearTimeout(timeout); };
   }, [status, currentPage, scale]);
 
-  // Pan handlers
+  // Pan handlers — use refs to avoid re-renders during drag
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!panMode) return;
-    setIsPanning(true);
+    e.preventDefault();
+    isPanningRef.current = true;
     panStart.current = { x: e.clientX, y: e.clientY };
     const c = containerRef.current;
-    if (c) scrollStart.current = { x: c.scrollLeft, y: c.scrollTop };
+    if (c) {
+      scrollStart.current = { x: c.scrollLeft, y: c.scrollTop };
+      c.style.cursor = "grabbing";
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isPanning || !panMode) return;
+    if (!isPanningRef.current) return;
     const c = containerRef.current;
     if (!c) return;
-    const dx = e.clientX - panStart.current.x;
-    const dy = e.clientY - panStart.current.y;
-    c.scrollLeft = scrollStart.current.x - dx;
-    c.scrollTop = scrollStart.current.y - dy;
+    c.scrollLeft = scrollStart.current.x - (e.clientX - panStart.current.x);
+    c.scrollTop = scrollStart.current.y - (e.clientY - panStart.current.y);
   };
 
-  const handleMouseUp = () => setIsPanning(false);
+  const handleMouseUp = () => {
+    isPanningRef.current = false;
+    const c = containerRef.current;
+    if (c) c.style.cursor = panMode ? "grab" : "";
+  };
 
   // Mouse wheel zoom
   const handleWheel = (e: React.WheelEvent) => {
@@ -206,7 +211,7 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
       {/* Canvas + overlay */}
       <div
         ref={containerRef}
-        className={`flex-1 bg-slate-200 dark:bg-slate-900 overflow-auto p-4 ${panMode ? (isPanning ? "cursor-grabbing" : "cursor-grab") : ""}`}
+        className={`flex-1 bg-slate-200 dark:bg-slate-900 overflow-auto p-4 ${panMode ? "cursor-grab" : ""}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -229,34 +234,15 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
             {/* Highlight overlay */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1000 1000" preserveAspectRatio="none">
               {pageHighlights.map((h, idx) => (
-                <g key={idx}>
-                  {/* Filled area */}
-                  <rect
-                    x={h.bbox.x} y={h.bbox.y} width={h.bbox.w} height={h.bbox.h}
-                    fill={h.color} fillOpacity={0.15}
-                    stroke={h.color} strokeWidth={3} strokeOpacity={0.8}
-                    rx={4}
-                  >
-                    <animate attributeName="stroke-opacity" values="0.8;0.3;0.8" dur="1.5s" repeatCount="indefinite" />
-                  </rect>
-                  {/* Label */}
-                  {h.label && (
-                    <>
-                      <rect
-                        x={h.bbox.x} y={h.bbox.y - 18}
-                        width={Math.max(h.label.length * 7, 40)} height={16}
-                        fill={h.color} rx={3} fillOpacity={0.9}
-                      />
-                      <text
-                        x={h.bbox.x + 4} y={h.bbox.y - 6}
-                        fontSize={10} fill="white" fontWeight="bold"
-                        fontFamily="system-ui, sans-serif"
-                      >
-                        {h.label}
-                      </text>
-                    </>
-                  )}
-                </g>
+                <line
+                  key={idx}
+                  x1={h.bbox.x} y1={h.bbox.y + h.bbox.h / 2}
+                  x2={h.bbox.x + h.bbox.w} y2={h.bbox.y + h.bbox.h / 2}
+                  stroke={h.color} strokeWidth={4} strokeOpacity={0.85}
+                  strokeLinecap="round"
+                >
+                  <animate attributeName="stroke-opacity" values="0.85;0.4;0.85" dur="1.5s" repeatCount="indefinite" />
+                </line>
               ))}
             </svg>
           </div>
