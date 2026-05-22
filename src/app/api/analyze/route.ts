@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get("pdf") as File | null;
+    const feedbackJson = formData.get("feedback") as string | null;
+    const drawingType = (formData.get("drawingType") as string) || "";
 
     if (!file) {
       return NextResponse.json({ error: "Ingen PDF-fil uppladdad" }, { status: 400 });
@@ -83,11 +85,36 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
 
+    // Build few-shot prompt from past feedback
+    let finalPrompt = GEMINI_PROMPT;
+    if (feedbackJson) {
+      try {
+        const feedbackList = JSON.parse(feedbackJson) as { corrections: string[]; correctedResult: { summary: string; cables: unknown[]; components: unknown[] } }[];
+        if (feedbackList.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const examples = feedbackList.slice(0, 3).map((fb, idx) => {
+            const comps = fb.correctedResult.components as any[];
+            const cables = fb.correctedResult.cables as any[];
+            const compExample = comps?.[0];
+            const cableExample = cables?.[0];
+            return `EXEMPEL ${idx + 1} (korrigerad analys):
+- Komponentexempel: ${compExample ? `${compExample.name} (symbol: ${compExample.symbol || "-"}, kvantitet: ${compExample.quantity})` : "-"}
+- Kabelexempel: ${cableExample ? `${cableExample.type} (beteckning: ${cableExample.designation || "-"}, längd: ${cableExample.lengthMeters}m, från: ${cableExample.from}, till: ${cableExample.to})` : "-"}
+- Korrigeringar som gjordes: ${fb.corrections.join("; ")}`;
+          }).join("\n\n");
+
+          finalPrompt = `VIKTIGT: Nedan följer ${feedbackList.length} tidigare korrigerade analyser. Använd dessa som vägledning för att undvika liknande misstag. Var extra uppmärksam på de korrigeringar som nämns.\n\n${examples}\n\n---\n\n${GEMINI_PROMPT}`;
+        }
+      } catch {
+        // ignore invalid feedback JSON
+      }
+    }
+
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const result = await model.generateContent([
-      { text: GEMINI_PROMPT },
+      { text: finalPrompt },
       {
         inlineData: {
           mimeType: "application/pdf",

@@ -17,6 +17,8 @@ import type { AnalysisResult, CostLineItem, ChatMessage } from "@/lib/types";
 import PdfViewer, { type Highlight } from "@/components/PdfViewer";
 import ProjectStats from "@/components/ProjectStats";
 import ProjectSummary from "@/components/ProjectSummary";
+import { saveFeedback, getFeedbackByProject } from "@/lib/db";
+import type { AnalysisFeedback } from "@/lib/types";
 
 
 function fmt(n: number) {
@@ -43,6 +45,9 @@ export default function ProjectPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [originalAnalysis, setOriginalAnalysis] = useState<AnalysisResult | null>(null); // snapshot before corrections
+  const [corrections, setCorrections] = useState<string[]>([]); // list of what user fixed
+  const [feedbackSaved, setFeedbackSaved] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -78,10 +83,17 @@ export default function ProjectPage() {
       const d = drawings.find((x) => x.id === selected);
       if (!d) return;
       if (d.analysis) {
-        setAnalysis(d.analysis as AnalysisResult);
-        setExpandedCats(new Set((d.analysis as AnalysisResult).costItems.map((i) => i.category)));
+        const a = d.analysis as AnalysisResult;
+        setAnalysis(a);
+        setOriginalAnalysis(JSON.parse(JSON.stringify(a))); // deep copy
+        setExpandedCats(new Set(a.costItems.map((i) => i.category)));
+        setFeedbackSaved(false);
+        setCorrections([]);
       } else {
         setAnalysis(null);
+        setOriginalAnalysis(null);
+        setFeedbackSaved(false);
+        setCorrections([]);
       }
       const fileData = await getFile(selected);
       if (fileData) {
@@ -136,13 +148,20 @@ export default function ProjectPage() {
     if (!selected || !pdfFileRef.current) return;
     setAnalyzing(true); setError(null);
     try {
+      // Load past feedback for this project to send as few-shot examples
+      const feedbackList = await getFeedbackByProject(id);
+
       const fd = new FormData();
       fd.append("pdf", pdfFileRef.current);
+      fd.append("feedback", JSON.stringify(feedbackList));
       const res = await fetch("/api/analyze", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Analysfel");
       const result = data as AnalysisResult;
       setAnalysis(result);
+      setOriginalAnalysis(JSON.parse(JSON.stringify(result))); // deep copy
+      setCorrections([]);
+      setFeedbackSaved(false);
       setExpandedCats(new Set(result.costItems.map((i) => i.category)));
       setTab("components");
       // Persist
@@ -520,6 +539,63 @@ export default function ProjectPage() {
                     <div>
                       <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Sammanfattning</h3>
                       <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 rounded-lg p-3">{analysis.summary}</p>
+                    </div>
+                  )}
+
+                  {/* Feedback / corrections */}
+                  {originalAnalysis && !feedbackSaved && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <h3 className="text-xs font-semibold text-amber-800 mb-1.5">Hjälp AI:n att bli bättre</h3>
+                      <p className="text-[10px] text-amber-700 mb-2">Om analysen var felaktig, ange vad som behöver korrigeras. Nästa analys på en liknande ritning blir bättre.</p>
+                      <div className="space-y-1.5 mb-2">
+                        {[
+                          "Fel kabeltyp identifierad",
+                          "Felaktig längdberäkning",
+                          "Komponent saknas/räknades fel",
+                          "Skala lästes fel",
+                          "Annat fel",
+                        ].map((label) => (
+                          <label key={label} className="flex items-center gap-2 text-[11px] text-amber-900 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="w-3.5 h-3.5 accent-amber-600"
+                              checked={corrections.includes(label)}
+                              onChange={(e) => {
+                                setCorrections((prev) =>
+                                  e.target.checked ? [...prev, label] : prev.filter((c) => c !== label)
+                                );
+                              }}
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (corrections.length === 0 || !originalAnalysis || !analysis || !selected) return;
+                          const fb: AnalysisFeedback = {
+                            id: crypto.randomUUID(),
+                            drawingId: selected,
+                            projectId: id,
+                            createdAt: new Date().toISOString(),
+                            originalResult: originalAnalysis,
+                            correctedResult: analysis,
+                            corrections,
+                            drawingType: analysis.drawingInfo.title || "okänd",
+                          };
+                          await saveFeedback(fb);
+                          setFeedbackSaved(true);
+                        }}
+                        disabled={corrections.length === 0}
+                        className="text-[11px] px-3 py-1.5 bg-amber-600 text-white rounded-md font-medium hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                      >
+                        Spara korrigering
+                      </button>
+                    </div>
+                  )}
+                  {feedbackSaved && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
+                      <p className="text-xs font-medium text-emerald-700">Tack! Korrigeringen sparad — AI:n lär sig av den.</p>
                     </div>
                   )}
 

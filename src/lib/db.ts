@@ -1,5 +1,5 @@
 const DB_NAME = "ritningstolkaren";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -15,6 +15,11 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains("files")) {
         db.createObjectStore("files", { keyPath: "drawingId" });
+      }
+      if (!db.objectStoreNames.contains("feedback")) {
+        const fb = db.createObjectStore("feedback", { keyPath: "id" });
+        fb.createIndex("projectId", "projectId", { unique: false });
+        fb.createIndex("drawingType", "drawingType", { unique: false });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -133,4 +138,33 @@ export async function getFile(drawingId: string): Promise<ArrayBuffer | null> {
     (s) => s.get(drawingId)
   );
   return rec?.data ?? null;
+}
+
+// Feedback
+import type { AnalysisFeedback } from "@/lib/types";
+
+export async function saveFeedback(feedback: AnalysisFeedback): Promise<void> {
+  await tx("feedback", "readwrite", (s) => s.put(feedback));
+}
+
+export async function getFeedbackByProject(projectId: string): Promise<AnalysisFeedback[]> {
+  return openDB().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const transaction = db.transaction("feedback", "readonly");
+        const store = transaction.objectStore("feedback");
+        const index = store.index("projectId");
+        const req = index.getAll(projectId);
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      })
+  );
+}
+
+export async function getAllFeedback(): Promise<AnalysisFeedback[]> {
+  return txAll("feedback", (s) => s.getAll());
+}
+
+export async function deleteFeedback(id: string): Promise<void> {
+  await tx("feedback", "readwrite", (s) => s.delete(id));
 }

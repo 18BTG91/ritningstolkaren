@@ -72,3 +72,14 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
 }
+
+export interface AnalysisFeedback {
+  id: string;
+  drawingId: string;
+  projectId: string;
+  createdAt: string;
+  originalResult: AnalysisResult;
+  correctedResult: AnalysisResult;
+  corrections: string[]; // human-readable list of what was changed
+  drawingType: string; // e.g. "planritning", "elschema", "fasad"
+}
