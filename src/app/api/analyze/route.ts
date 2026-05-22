@@ -56,7 +56,7 @@ REGLER:
 - Identifiera kanalisation: kabelstegar, kabelrännor, installationsrör
 - Identifiera förläggningssätt om det framgår
 - VIKTIGT: För varje komponent, ange "bbox" med ungefärlig position på ritningen i pixelkoordinater (baserat på en sida som är 1000x1000 pixlar). "page" anger sidnummer (1-indexerat), "x" och "y" är övre vänstra hörnet, "w" och "h" är bredd och höjd.
-- EXTREMT VIKTIGT FÖR KABLAR: Ange "path" med kabelns dragning som en serie punkter (polyline) i pixelkoordinater (0-1000). Följ den synliga kabellinjen på ritningen — inkludera alla punkter där kabeln svänger, böjer eller byter riktning. Texten som anger kabeltyp (t.ex. "5G25", "3G1.5") sitter längs linjen — följ den linjen. path.page anger sidnummer, path.points är arrayen med {x,y}-koordinater längs kabellinjen.`;
+- EXTREMT VIKTIGT FÖR KABLAR: Ange "path" med kabelns HELA dragning från startpunkt (elcentral/gruppcentral) till slutpunkt (uttag/armatur/etc). Ange minst 4-8 punkter längs den synliga kabellinjen i pixelkoordinater (0-1000). Inkludera: (1) startpunkten vid elcentralen, (2) varje hörn/sväng där kabeln byter riktning, (3) slutpunkten vid uttaget/armaturen. Texten "5G25", "3G1.5" etc sitter på linjen — följ den linjen hela vägen. path.page = sidnummer, path.points = [{x,y}] från start till slut. Ju fler punkter desto bättre — speciellt vid svängar.`;
 
 export async function POST(request: NextRequest) {
   try {

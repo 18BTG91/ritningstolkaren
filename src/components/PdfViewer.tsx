@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Loader2, Hand, MousePointer } from "lucide-react";
 import type { BoundingBox } from "@/lib/types";
-import { traceCableLine } from "@/lib/lineTracer";
+import { traceCableLine, traceFullPath } from "@/lib/lineTracer";
 
 export interface Highlight {
   bbox?: BoundingBox;
@@ -180,22 +180,20 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
     const results: { points: { x: number; y: number }[]; color: string }[] = [];
 
     for (const h of highlights) {
-      if (h.path && h.path.length >= 1) {
-        // Use first point of Gemini's path as seed for tracing
-        const seed = h.path[0];
-        const traced = traceCableLine(canvas, seed.x, seed.y);
+      if (h.path && h.path.length >= 2) {
+        // Use all waypoints for guided tracing (from panel to outlet)
+        const traced = traceFullPath(canvas, h.path);
         if (traced && traced.length >= 2) {
           results.push({ points: traced, color: h.color });
         } else {
-          // Fallback: try middle point
-          const mid = h.path[Math.floor(h.path.length / 2)];
-          const tracedMid = traceCableLine(canvas, mid.x, mid.y);
-          if (tracedMid && tracedMid.length >= 2) {
-            results.push({ points: tracedMid, color: h.color });
-          } else {
-            // Last resort: use Gemini's approximate path
-            results.push({ points: h.path, color: h.color });
-          }
+          // Fallback: use Gemini's approximate path directly
+          results.push({ points: h.path, color: h.color });
+        }
+      } else if (h.path && h.path.length === 1) {
+        // Single seed point — undirected trace
+        const traced = traceCableLine(canvas, h.path[0].x, h.path[0].y);
+        if (traced && traced.length >= 2) {
+          results.push({ points: traced, color: h.color });
         }
       } else if (h.bbox) {
         // Use center of bbox as seed
@@ -204,15 +202,6 @@ export default function PdfViewer({ data, highlights = [] }: Props) {
         const traced = traceCableLine(canvas, cx, cy);
         if (traced && traced.length >= 2) {
           results.push({ points: traced, color: h.color });
-        } else {
-          // Fallback: horizontal line through bbox
-          results.push({
-            points: [
-              { x: h.bbox.x, y: cy },
-              { x: h.bbox.x + h.bbox.w, y: cy },
-            ],
-            color: h.color,
-          });
         }
       }
     }
