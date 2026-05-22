@@ -13,7 +13,7 @@ Svara EXAKT i följande JSON-format (inga extra tecken utanför JSON):
   "drawingInfo": {
     "title": "Ritningens titel",
     "drawingNumber": "Ritningsnummer om det finns",
-    "scale": "Skala om angiven",
+    "scale": "Skala (t.ex. 1:50, 1:100) — LÄS AV DENNA FÖRST, den behövs för längdberäkning",
     "date": "Datum om angivet",
     "designer": "Konstruktör/projektör om angiven",
     "description": "Kort beskrivning av vad ritningen visar"
@@ -33,7 +33,7 @@ Svara EXAKT i följande JSON-format (inga extra tecken utanför JSON):
     {
       "type": "Kabeltyp (t.ex. EQLQ 3G1.5, EQLQ 5G2.5, EKKJ 5G2.5, FQ 2x1.5, etc.)",
       "designation": "Kabelbeteckning från ritningen (t.ex. W1, W2, etc.)",
-      "lengthMeters": 12.5,
+      "lengthMeters": 12.5,  // Beräknad verklig längd baserat på ritningens skala
       "from": "Var kabeln börjar (t.ex. gruppcentral GC1)",
       "to": "Var kabeln slutar (t.ex. uttag i rum 201)",
       "system": "System (t.ex. Belysning, Kraft, Data, Brandlarm)",
@@ -46,7 +46,8 @@ Svara EXAKT i följande JSON-format (inga extra tecken utanför JSON):
 
 REGLER:
 - Räkna varje synlig symbol/komponent noggrant
-- Identifiera ALLA kabeldragningar: typ, beteckning, uppskattad längd baserat på ritningens skala
+- Identifiera ALLA kabeldragningar: typ, beteckning, och BERÄKNA verklig längd i meter
+- KRITISKT FÖR KABELLÄNGD: Läs av ritningens skala (t.ex. 1:50, 1:100) från skalstrecket/skalindikationen som vanligtvis finns i namnrutan eller nedre delen av ritningen. Mät sedan kabelns längd på ritningen och multiplicera med skalfaktorn. Exempel: om skalan är 1:50 och kabeln är ca 5 cm lång på ritningen = 5 × 50 = 250 cm = 2.5 m verklig längd. Tänk på att: (1) Mät hela kabeldragningen inklusive vertikala och horisontella sträckor, (2) Lägg till ~10% för skarvar och böjar, (3) Om skalan inte hittas, ange detta i drawingInfo.scale som "Ej angiven" och uppskatta baserat på rummens typiska storlek
 - Gruppera likadana komponenter men specificera placering
 - Om du inte kan identifiera en symbol exakt, beskriv den som du ser den
 - Inkludera ALLA typer: belysning, uttag, strömställare, kablar, centraler, larm, data, brandlarm, etc.
