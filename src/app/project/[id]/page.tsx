@@ -18,10 +18,6 @@ import PdfViewer, { type Highlight } from "@/components/PdfViewer";
 import ProjectStats from "@/components/ProjectStats";
 import ProjectSummary from "@/components/ProjectSummary";
 
-const CABLE_COLORS = [
-  "#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6",
-  "#ec4899", "#06b6d4", "#f97316", "#6366f1", "#14b8a6",
-];
 
 function fmt(n: number) {
   return new Intl.NumberFormat("sv-SE", { style: "currency", currency: "SEK", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
@@ -436,22 +432,6 @@ export default function ProjectPage() {
                 <div className="p-3 space-y-2">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-xs text-slate-500">{analysis.cables.length} kablar identifierade</p>
-                    {analysis.cables.some((c) => c.path || c.bbox) && (
-                      <button
-                        onClick={() => {
-                          const all = analysis.cables
-                            .filter((c) => c.path || c.bbox)
-                            .map((c, i) => ({
-                              ...(c.path ? { path: c.path.points } : { bbox: c.bbox! }),
-                              color: CABLE_COLORS[i % CABLE_COLORS.length],
-                            }));
-                          setHighlights(highlights.length > 1 ? [] : all);
-                        }}
-                        className={`text-[10px] px-2 py-1 rounded-md font-medium transition-colors ${highlights.length > 1 ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"}`}
-                      >
-                        {highlights.length > 1 ? "Dölj alla" : "Visa alla på ritning"}
-                      </button>
-                    )}
                   </div>
                   {analysis.cables.length === 0 && (
                     <p className="text-xs text-slate-400 text-center py-8">Inga kablar identifierade i denna ritning.</p>
@@ -459,18 +439,10 @@ export default function ProjectPage() {
                   {analysis.cables.map((c, i) => (
                     <div
                       key={i}
-                      onClick={() => {
-                        if (c.path) setHighlights([{ path: c.path.points, color: CABLE_COLORS[i % CABLE_COLORS.length] }]);
-                        else if (c.bbox) setHighlights([{ bbox: c.bbox, color: CABLE_COLORS[i % CABLE_COLORS.length] }]);
-                        else setHighlights([]);
-                      }}
-                      className={`rounded-lg p-3 text-xs space-y-1 cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all ${(c.path || c.bbox) && highlights.length === 1 ? "ring-2 bg-white dark:bg-slate-600" : "bg-slate-50 dark:bg-slate-700"}`}
+                      className="rounded-lg p-3 text-xs space-y-1 bg-slate-50 dark:bg-slate-700"
                     >
                       <div className="flex justify-between items-start">
-                        <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                          {(c.path || c.bbox) && <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CABLE_COLORS[i % CABLE_COLORS.length] }} />}
-                          {c.type}
-                        </span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{c.type}</span>
                         <span className="font-bold text-blue-700">{c.lengthMeters} m</span>
                       </div>
                       {c.designation && <p className="text-slate-500 dark:text-slate-400">Beteckning: {c.designation}</p>}
